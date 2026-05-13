@@ -173,6 +173,7 @@ $daysOfWeek = [1 => 'Sun', 2 => 'Mon', 3 => 'Tue', 4 => 'Wed', 5 => 'Thu', 6 => 
 <html class="light" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'><rect%20width='100'%20height='100'%20rx='15'%20fill='%23006671'/><text%20x='50'%20y='60'%20font-size='60'%20text-anchor='middle'%20fill='white'%20font-family='Arial'>H</text></svg>"/>
 <meta http-equiv="refresh" content="10"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -609,11 +610,14 @@ foreach ($topPasswords as $passRow):
 </div>
 </footer>
 </main>
-<!-- Floating Action: Quick Investigation -->
+<!-- Floating Action: Log Out -->
 <div class="fixed bottom-lg right-lg z-40">
-<button class="flex items-center gap-sm bg-surface-bright text-on-surface px-lg py-md rounded-full shadow-lg border border-outline-variant/50 hover:shadow-xl transition-shadow group">
-<span class="material-symbols-outlined text-primary group-hover:rotate-12 transition-transform">biotech</span>
-<span class="font-bold tracking-tight">INVESTIGATE AGENT</span>
+<form method="POST" action="logout.php" class="m-0">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generate_csrf_token()) ?>">
+<button type="submit" class="flex items-center gap-sm bg-surface-bright text-on-surface px-lg py-md rounded-full shadow-lg border border-outline-variant/50 hover:shadow-xl transition-shadow group">
+<span class="material-symbols-outlined text-primary group-hover:rotate-12 transition-transform">logout</span>
+<span class="font-bold tracking-tight">LOG OUT</span>
 </button>
+</form>
 </div>
 </body></html>
