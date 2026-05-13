@@ -1,6 +1,11 @@
 <?php
-session_start();
 require_once 'db.php';
+ensure_session_started();
+// Redirect already authenticated admins away from the login page
+if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] === true) {
+    header('Location: command_hub_a1.php');
+    exit;
+}
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -44,6 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'><rect%20width='100'%20height='100'%20rx='15'%20fill='%23006671'/><text%20x='50'%20y='60'%20font-size='60'%20text-anchor='middle'%20fill='white'%20font-family='Arial'>H</text></svg>"/>
 <title>Honeyform | Secure Admin Login</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
@@ -70,12 +76,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             <div class="mb-8">
                 <label class="block text-xs font-bold mb-2 text-[#5d6466] uppercase">Password</label>
-                <input type="password" name="password" class="w-full border border-[#bcc9cb] px-4 py-3 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#006671] focus:border-[#006671] transition-all" required placeholder="••••••••" />
+                <div class="relative">
+                    <input id="admin-password" type="password" name="password" class="w-full border border-[#bcc9cb] px-4 py-3 rounded-lg pr-12 focus:outline-none focus:ring-1 focus:ring-[#006671] focus:border-[#006671] transition-all" required placeholder="••••••••" />
+                    <button type="button" aria-label="Toggle password visibility" class="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-[#006671]" onclick="togglePassword('admin-password', this)">Show</button>
+                </div>
             </div>
             <button type="submit" class="w-full bg-[#006671] text-white font-medium text-lg py-3 px-4 rounded-lg hover:bg-[#00818f] active:scale-[0.98] transition-all flex justify-center items-center gap-2">
                 Secure Login
             </button>
         </form>
     </div>
+<script>
+function togglePassword(id, btn){
+    var el = document.getElementById(id);
+    if(!el) return;
+    if(el.type === 'password'){ el.type = 'text'; btn.textContent = 'Hide'; } else { el.type = 'password'; btn.textContent = 'Show'; }
+}
+</script>
 </body>
 </html>

@@ -59,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html class="light" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'><rect%20width='100'%20height='100'%20rx='15'%20fill='%23006671'/><text%20x='50'%20y='60'%20font-size='60'%20text-anchor='middle'%20fill='white'%20font-family='Arial'>H</text></svg>"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@450&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -258,4 +259,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
     <span class="font-data-mono text-[12px]">Decoy</span>
 </footer>
+<script>
+function togglePassword(id, btn){
+    var el = document.getElementById(id);
+    if(!el) return;
+    if(el.type === 'password'){ el.type = 'text'; btn.textContent = 'Hide'; } else { el.type = 'password'; btn.textContent = 'Show'; }
+}
+</script>
 </body></html>
