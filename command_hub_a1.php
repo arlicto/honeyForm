@@ -79,17 +79,17 @@ $stmtUser = $pdo->query("SELECT attempted_username, COUNT(*) as c FROM attack_lo
 $topUserResult = $stmtUser->fetch();
 $mostTargetedUsername = $topUserResult ? $topUserResult['attempted_username'] : 'N/A';
 
-// 4. Attack types percentages
-$stmtTypes = $pdo->query("SELECT attack_type, COUNT(*) as c FROM attack_logs GROUP BY attack_type");
-$attackTypes = $stmtTypes->fetchAll(PDO::FETCH_KEY_PAIR);
+// 4. Attack types percentages (via shared stats helpers)
+$attackTypePercents = stats_get_attack_type_percentages($pdo);
+$attackTypes = stats_get_attack_type_counts($pdo);
 
 $sqliCount = $attackTypes['SQLi'] ?? 0;
 $bruteForceCount = $attackTypes['Brute Force'] ?? 0;
 $pathTraversalCount = $attackTypes['Path Traversal'] ?? 0;
 
-$sqliPercent = $totalAttacks > 0 ? round(($sqliCount / $totalAttacks) * 100) : 0;
-$bruteForcePercent = $totalAttacks > 0 ? round(($bruteForceCount / $totalAttacks) * 100) : 0;
-$pathTraversalPercent = $totalAttacks > 0 ? round(($pathTraversalCount / $totalAttacks) * 100) : 0;
+$sqliPercent = $attackTypePercents['SQLi'] ?? 0;
+$bruteForcePercent = $attackTypePercents['Brute Force'] ?? 0;
+$pathTraversalPercent = $attackTypePercents['Path Traversal'] ?? 0;
 
 // 5. Pen-test Tools Detection
 $stmtSqlmap = $pdo->query("SELECT COUNT(*) FROM attack_logs WHERE LOWER(user_agent) LIKE '%sqlmap%'");
@@ -104,9 +104,8 @@ $hydraCount = $stmtHydra->fetchColumn() ?: 0;
 $stmtCurl = $pdo->query("SELECT COUNT(*) FROM attack_logs WHERE LOWER(user_agent) LIKE '%curl%'");
 $curlCount = $stmtCurl->fetchColumn() ?: 0;
 
-// 6. Top 10 IPs
-$stmtTopIPs = $pdo->query("SELECT ip_address, total_attacks as c FROM ip_tracking ORDER BY total_attacks DESC LIMIT 10");
-$topIPs = $stmtTopIPs->fetchAll();
+// 6. Top 10 IPs (via shared stats helpers)
+$topIPs = stats_get_top_ips($pdo, 10);
 
 // 7. Top 10 Usernames
 $stmtTopUsers = $pdo->query("SELECT attempted_username, COUNT(*) as c FROM attack_logs WHERE attempted_username != '' GROUP BY attempted_username ORDER BY c DESC LIMIT 10");

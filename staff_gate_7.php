@@ -4,33 +4,38 @@ require_once 'db.php';
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
-    
-    $stmt = $pdo->prepare("SELECT id, password_hash FROM admin_accounts WHERE username = ?");
-    $stmt->execute([$username]);
-    $admin = $stmt->fetch();
-    
-    if ($admin && password_verify($password, $admin['password_hash'])) {
-        // Prevent session fixation by issuing a new session id after successful authentication
-        session_regenerate_id(true);
-
-        $_SESSION['is_admin'] = true;
-        $_SESSION['admin_id'] = $admin['id'];
-        
-        // Update last login
-        $pdo->prepare("UPDATE admin_accounts SET last_login = CURRENT_TIMESTAMP WHERE id = ?")->execute([$admin['id']]);
-        
-        // Create session record
-        $session_id = session_id();
-        $ip = $_SERVER['REMOTE_ADDR'];
-        $stmtSession = $pdo->prepare("INSERT INTO sessions (session_id, admin_id, ip_address) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE last_activity = CURRENT_TIMESTAMP, ip_address = VALUES(ip_address)");
-        $stmtSession->execute([$session_id, $admin['id'], $ip]);
-        
-        header('Location: command_hub_a1.php');
-        exit;
+    // Verify CSRF token before processing any authentication data
+    if (!require_csrf(null, $error)) {
+        // $error is set by require_csrf(); do not proceed with authentication
     } else {
-        $error = 'Invalid admin credentials.';
+        $username = $_POST['username'] ?? '';
+        $password = $_POST['password'] ?? '';
+        
+        $stmt = $pdo->prepare("SELECT id, password_hash FROM admin_accounts WHERE username = ?");
+        $stmt->execute([$username]);
+        $admin = $stmt->fetch();
+        
+        if ($admin && password_verify($password, $admin['password_hash'])) {
+            // Prevent session fixation by issuing a new session id after successful authentication
+            session_regenerate_id(true);
+
+            $_SESSION['is_admin'] = true;
+            $_SESSION['admin_id'] = $admin['id'];
+            
+            // Update last login
+            $pdo->prepare("UPDATE admin_accounts SET last_login = CURRENT_TIMESTAMP WHERE id = ?")->execute([$admin['id']]);
+            
+            // Create session record
+            $session_id = session_id();
+            $ip = $_SERVER['REMOTE_ADDR'];
+            $stmtSession = $pdo->prepare("INSERT INTO sessions (session_id, admin_id, ip_address) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE last_activity = CURRENT_TIMESTAMP, ip_address = VALUES(ip_address)");
+            $stmtSession->execute([$session_id, $admin['id'], $ip]);
+            
+            header('Location: command_hub_a1.php');
+            exit;
+        } else {
+            $error = 'Invalid admin credentials.';
+        }
     }
 }
 ?>

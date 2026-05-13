@@ -39,6 +39,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Display a generic error message to keep the illusion
     $error = "500 Internal Server Error: Database connection failed.";
+
+    // Simulate realistic backend latency for decoy POST responses.
+    // Configurable via environment variables DECOY_MIN_DELAY_MS and DECOY_MAX_DELAY_MS (milliseconds).
+    try {
+        $minMs = getenv('DECOY_MIN_DELAY_MS') !== false ? (int)getenv('DECOY_MIN_DELAY_MS') : 400;
+        $maxMs = getenv('DECOY_MAX_DELAY_MS') !== false ? (int)getenv('DECOY_MAX_DELAY_MS') : 1200;
+        if ($maxMs < $minMs) { $maxMs = $minMs; }
+        $delayMs = random_int($minMs, $maxMs);
+        // usleep takes microseconds
+        usleep($delayMs * 1000);
+    } catch (\Throwable $e) {
+        // Ignore any failures in delay simulation to keep honeypot resilient
+    }
 }
 ?>
 <!DOCTYPE html>

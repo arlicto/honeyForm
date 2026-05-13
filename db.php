@@ -191,4 +191,86 @@ function verify_csrf_token(?string $token): bool {
     return hash_equals($_SESSION['csrf_token'], $token);
 }
 
+/**
+ * Require a valid CSRF token for POST requests.
+ * Usage: if (!require_csrf(null, $error)) { /* handle invalid token *-/ }
+ * Returns true when request is not POST or token is valid. When invalid, returns false and
+ * sets the optional $error message by reference.
+ */
+function require_csrf(?string $token = null, &$error = null): bool {
+    ensure_session_started();
+
+    // Only enforce for POST requests
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        return true;
+    }
+
+    $token = $token ?? ($_POST['csrf_token'] ?? null);
+    if (!verify_csrf_token($token)) {
+        if (is_string($error)) {
+            $error = 'Invalid security token. Please try again.';
+        } else {
+            // if caller didn't pass a variable to set, still log silently
+            error_log('CSRF verification failed for POST request to ' . ($_SERVER['REQUEST_URI'] ?? 'unknown'));
+        }
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Stats helper functions for shared metrics used across dashboards.
+ * Functions accept an optional PDO instance; if none provided the global $pdo is used.
+ */
+function stats_get_total_attacks(PDO $pdo = null): int {
+    $pdo = $pdo ?? ($GLOBALS['pdo'] ?? null);
+    if (!$pdo) return 0;
+    try {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM attack_logs");
+        return (int)$stmt->fetchColumn();
+    } catch (\PDOException $e) {
+        return 0;
+    }
+}
+
+function stats_get_attack_type_counts(PDO $pdo = null): array {
+    $pdo = $pdo ?? ($GLOBALS['pdo'] ?? null);
+    if (!$pdo) return [];
+    try {
+        $stmt = $pdo->query("SELECT attack_type, COUNT(*) as c FROM attack_logs GROUP BY attack_type");
+        return $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+    } catch (\PDOException $e) {
+        return [];
+    }
+}
+
+function stats_get_attack_type_percentages(PDO $pdo = null): array {
+    $pdo = $pdo ?? ($GLOBALS['pdo'] ?? null);
+    $total = stats_get_total_attacks($pdo);
+    if ($total <= 0) return [];
+
+    $counts = stats_get_attack_type_counts($pdo);
+    $percents = [];
+    foreach ($counts as $type => $c) {
+        $percents[$type] = (int) round(($c / $total) * 100);
+    }
+    return $percents;
+}
+
+/**
+ * Returns top IPs by number of logs for the entire dataset. Each row: ['ip_address' => ..., 'c' => ...]
+ */
+function stats_get_top_ips(PDO $pdo = null, int $limit = 10): array {
+    $pdo = $pdo ?? ($GLOBALS['pdo'] ?? null);
+    if (!$pdo) return [];
+    $limit = max(1, (int)$limit);
+    try {
+        $sql = "SELECT ip.ip_address, COUNT(*) AS c FROM attack_logs al JOIN ip_tracking ip ON al.ip_id = ip.id GROUP BY ip.ip_address ORDER BY c DESC LIMIT " . $limit;
+        $stmt = $pdo->query($sql);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (\PDOException $e) {
+        return [];
+    }
+}
+
 ?>
