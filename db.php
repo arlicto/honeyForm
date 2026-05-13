@@ -207,7 +207,8 @@ function require_csrf(?string $token = null, &$error = null): bool {
 
     $token = $token ?? ($_POST['csrf_token'] ?? null);
     if (!verify_csrf_token($token)) {
-        if (is_string($error)) {
+        // If the caller provided a second argument (by reference), populate it even if it's null/uninitialized.
+        if (func_num_args() >= 2) {
             $error = 'Invalid security token. Please try again.';
         } else {
             // if caller didn't pass a variable to set, still log silently
