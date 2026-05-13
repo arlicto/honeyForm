@@ -1,7 +1,7 @@
 <?php
 require_once 'db.php';
 
-session_start();
+ensure_session_started();
 $isAdmin = !empty($_SESSION['is_admin']);
 
 // Fetch last-updated timestamp from attack_logs to avoid showing a misleading static time

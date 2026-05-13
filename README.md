@@ -143,6 +143,40 @@ If you are presenting HoneyForm and need to demonstrate real-time data updates w
 
 ---
 
+## 🧪 Testing Attack Detection
+
+You can manually test the honeypot's detection engine using `curl` to simulate different attack patterns. All attempts will immediately appear in the **Forensic Stream Analyzer**.
+
+### 1. SQL Injection (SQLi)
+Simulate an authentication bypass attempt using common SQL injection tokens.
+```bash
+curl -X POST http://localhost:8000/ -d "username=admin' OR 1=1 --&password=password"
+```
+
+### 2. Path Traversal
+Attempt to access sensitive system files through directory traversal.
+```bash
+curl "http://localhost:8000/gateway.php?file=../../../../etc/passwd"
+```
+
+### 3. Brute Force
+Perform a standard login attempt. Multiple attempts from the same IP will trigger an **ALERT** flag in the logs.
+```bash
+curl -X POST http://localhost:8000/ -d "username=root&password=password123"
+```
+
+### 4. Automated Scanners
+Simulate a scan from a known pen-testing tool by modifying the `User-Agent` header.
+```bash
+# Simulate sqlmap
+curl -A "sqlmap/1.4.11 (http://sqlmap.org)" http://localhost:8000/
+
+# Simulate Nikto
+curl -A "Nikto/2.1.6" http://localhost:8000/
+```
+
+---
+
 ## 📂 Key Components
 
 | File | Purpose |

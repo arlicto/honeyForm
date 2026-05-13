@@ -1,6 +1,6 @@
 <?php
 require_once 'db.php';
-session_start();
+ensure_session_started();
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

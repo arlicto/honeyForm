@@ -36,6 +36,19 @@ function loadEnv($filePath) {
 // Load .env variables
 loadEnv(__DIR__ . '/.env');
 
+// Prevent session conflicts and permission errors between Apache (www-data) and php -S (local user)
+if (php_sapi_name() === 'cli-server') {
+    $devSessionPath = __DIR__ . '/.sessions';
+    if (!is_dir($devSessionPath)) {
+        @mkdir($devSessionPath, 0700);
+    }
+    if (is_dir($devSessionPath) && is_writable($devSessionPath)) {
+        session_save_path($devSessionPath);
+    }
+    // Use a unique session name for the development server to avoid cookie collisions
+    session_name('HONEYFORM_DEV_SESS');
+}
+
 $host    = getenv('DB_HOST') ?: '127.0.0.1';
 $db      = getenv('DB_NAME') ?: 'honeyform_db';
 $user    = getenv('DB_USER') ?: 'root';

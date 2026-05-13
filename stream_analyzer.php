@@ -1,12 +1,12 @@
 <?php
-session_start();
+require_once 'db.php';
+ensure_session_started();
 if (empty($_SESSION['is_admin'])) {
     http_response_code(404);
     echo 'Not Found';
     exit;
 }
 
-require_once 'db.php';
 
 $filterIp = trim($_GET['ip'] ?? '');
 $filterUsername = trim($_GET['username'] ?? '');
