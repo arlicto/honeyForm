@@ -126,20 +126,29 @@ The root page (`index.php` which routes to `gateway.php`) is designed to look li
 *   Attackers receive a realistic "500 Internal Server Error" to maintain the illusion.
 
 ### ⚡ Live Presentation Mode (Log Generator)
-If you are presenting HoneyForm and need to demonstrate real-time data updates without manual effort, use the included simulation script:
+If you are presenting HoneyForm and need to demonstrate real-time data updates without manual effort, use the included simulation script.
 
-*   **Start Live Simulation** (Adds a new attack every 3 seconds):
+*   **Start Live Simulation** (Adds a new attack every 3 seconds by default):
     ```bash
-    php live_log_generator.php
+    php live_log_generator.php [interval_seconds]
     ```
-*   **Clear & Restart Simulation** (Wipes old data and starts fresh):
+*   **Seed Historical Data** (Recommended for Demos):
     ```bash
-    php live_log_generator.php --clear
+    php live_log_generator.php seed
     ```
+    *   Populates the database with **7 days** of randomized historical data. This ensures the line charts, heatmaps, and top-N lists are fully populated and dynamic instantly.
+*   **Clear & Seed** (Best for a fresh presentation start):
+    ```bash
+    php live_log_generator.php clear seed
+    ```
+    *   Wipes all existing forensic data and then seeds 7 days of history before transitioning to live log generation.
 *   **Clear Only** (Wipes database and exits):
     ```bash
-    php live_log_generator.php --clear-only
+    php live_log_generator.php clear-only
     ```
+
+> [!TIP]
+> The generator is flexible with arguments. You can use flags like `--seed`, `--clear`, or simply the keywords `seed`, `clear`, and `clear-only` in any order.
 
 ---
 

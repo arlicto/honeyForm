@@ -138,6 +138,25 @@ for ($i = 0; $i < $hoursWindow; $i++) {
 $chartLabelsJson = json_encode($chartLabels);
 $chartDataJson = json_encode($chartData);
 
+// 9b. Time-Series Data (Daily — last 14 days)
+$daysWindow = 14;
+$startDayDt = (new DateTime())->modify('-' . ($daysWindow - 1) . ' days');
+$stmtChartDaily = $pdo->prepare("SELECT DATE_FORMAT(timestamp, '%Y-%m-%d') as dy, COUNT(*) as c FROM attack_logs WHERE timestamp >= ? GROUP BY dy ORDER BY dy ASC");
+$stmtChartDaily->execute([$startDayDt->format('Y-m-d 00:00:00')]);
+$chartMapDaily = $stmtChartDaily->fetchAll(PDO::FETCH_KEY_PAIR);
+
+$dailyLabels = [];
+$dailyData = [];
+$currDay = clone $startDayDt;
+for ($i = 0; $i < $daysWindow; $i++) {
+    $slotKey = $currDay->format('Y-m-d');
+    $dailyLabels[] = $currDay->format('m-d');
+    $dailyData[] = (int)($chartMapDaily[$slotKey] ?? 0);
+    $currDay->modify('+1 day');
+}
+$dailyLabelsJson = json_encode($dailyLabels);
+$dailyDataJson = json_encode($dailyData);
+
 // 10. Top Countries
 $stmtCountries = $pdo->query("SELECT country_code, country_name, SUM(total_attacks) as c FROM ip_tracking WHERE country_code IS NOT NULL AND country_code != 'XX' GROUP BY country_code, country_name ORDER BY c DESC LIMIT 5");
 $topCountries = $stmtCountries->fetchAll();
@@ -344,8 +363,8 @@ $daysOfWeek = [1 => 'Sun', 2 => 'Mon', 3 => 'Tue', 4 => 'Wed', 5 => 'Thu', 6 => 
 <p class="text-body-base text-on-surface-variant">Real-time forensic telemetry data</p>
 </div>
 <div class="flex bg-surface-container rounded-lg p-base">
-<button class="px-md py-xs text-label-caps font-bold bg-white shadow-sm rounded-lg text-primary">HOURLY</button>
-<button class="px-md py-xs text-label-caps font-bold text-on-surface-variant hover:text-on-surface">DAILY</button>
+<button id="btnHourly" onclick="updateChartMode('hourly')" class="px-md py-xs text-label-caps font-bold bg-white shadow-sm rounded-lg text-primary transition-all">HOURLY</button>
+<button id="btnDaily" onclick="updateChartMode('daily')" class="px-md py-xs text-label-caps font-bold text-on-surface-variant hover:text-on-surface transition-all">DAILY</button>
 </div>
 </div>
 <div class="flex-grow relative w-full h-full min-h-[300px]">
@@ -358,13 +377,23 @@ document.addEventListener("DOMContentLoaded", function() {
     gradient.addColorStop(0, 'rgba(0, 102, 113, 0.3)'); 
     gradient.addColorStop(1, 'rgba(0, 102, 113, 0.0)');
     
-    new Chart(ctx, {
+    const hourlyData = {
+        labels: <?= $chartLabelsJson ?>,
+        data: <?= $chartDataJson ?>
+    };
+    
+    const dailyData = {
+        labels: <?= $dailyLabelsJson ?>,
+        data: <?= $dailyDataJson ?>
+    };
+
+    window.mainChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: <?= $chartLabelsJson ?>,
+            labels: hourlyData.labels,
             datasets: [{
                 label: 'Login Attempts',
-                data: <?= $chartDataJson ?>,
+                data: hourlyData.data,
                 borderColor: '#006671',
                 backgroundColor: gradient,
                 borderWidth: 2,
@@ -391,6 +420,32 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         }
     });
+
+    window.updateChartMode = function(mode) {
+        const btnHourly = document.getElementById('btnHourly');
+        const btnDaily = document.getElementById('btnDaily');
+        
+        if (mode === 'daily') {
+            window.mainChart.data.labels = dailyData.labels;
+            window.mainChart.data.datasets[0].data = dailyData.data;
+            
+            btnDaily.classList.add('bg-white', 'shadow-sm', 'text-primary');
+            btnDaily.classList.remove('text-on-surface-variant');
+            
+            btnHourly.classList.remove('bg-white', 'shadow-sm', 'text-primary');
+            btnHourly.classList.add('text-on-surface-variant');
+        } else {
+            window.mainChart.data.labels = hourlyData.labels;
+            window.mainChart.data.datasets[0].data = hourlyData.data;
+            
+            btnHourly.classList.add('bg-white', 'shadow-sm', 'text-primary');
+            btnHourly.classList.remove('text-on-surface-variant');
+            
+            btnDaily.classList.remove('bg-white', 'shadow-sm', 'text-primary');
+            btnDaily.classList.add('text-on-surface-variant');
+        }
+        window.mainChart.update();
+    };
 });
 </script>
 </div>

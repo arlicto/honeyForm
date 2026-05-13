@@ -19,17 +19,22 @@ if (php_sapi_name() !== 'cli') {
 $interval = 3;
 $clear = false;
 $clearOnly = false;
+$seed = false;
 
 foreach ($argv as $arg) {
+    $cleanArg = strtolower(trim($arg, '- '));
     if (is_numeric($arg)) {
         $interval = (int)$arg;
     }
-    if ($arg === '--clear') {
+    if ($cleanArg === 'clear') {
         $clear = true;
     }
-    if ($arg === '--clear-only') {
+    if ($cleanArg === 'clear-only') {
         $clear = true;
         $clearOnly = true;
+    }
+    if ($cleanArg === 'seed') {
+        $seed = true;
     }
 }
 
@@ -51,10 +56,6 @@ if ($clear) {
         echo "Error clearing logs: " . $e->getMessage() . "\n";
     }
 }
-
-echo "--- HoneyForm Live Log Generator ---\n";
-echo "Starting simulation. Press Ctrl+C to stop.\n";
-echo "Interval: every {$interval} seconds.\n\n";
 
 $ips = [
     ['ip' => '192.168.1.50', 'cc' => 'US', 'cn' => 'United States'],
@@ -81,10 +82,12 @@ $userAgents = [
 
 $usernames = ['admin', 'root', 'user', 'guest', 'administrator', 'webmaster', 'support', 'test', 'oracle', 'mysql'];
 $passwords = ['123456', 'password', 'admin123', 'root123', 'qwerty', 'dragon', 'letmein', "' OR 1=1 --", 'admin" --'];
-
 $methods = ['POST', 'GET'];
 
-while (true) {
+/**
+ * Helper to insert a randomized log entry at a specific time
+ */
+function insert_random_log($pdo, $ips, $userAgents, $usernames, $passwords, $methods, $timestamp = null) {
     $target = $ips[array_rand($ips)];
     $ip = $target['ip'];
     $cc = $target['cc'];
@@ -104,25 +107,69 @@ while (true) {
         'method' => $method
     ]);
 
-    $payload = json_encode(['username' => $user, 'password' => $pass, 'timestamp' => time()]);
+    $payload = json_encode(['username' => $user, 'password' => $pass, 'ts' => $timestamp ?? time()]);
 
     try {
         // Upsert IP tracking
-        $stmtIP = $pdo->prepare("INSERT INTO ip_tracking (ip_address, country_code, country_name) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE total_attacks = total_attacks + 1, last_seen = CURRENT_TIMESTAMP");
-        $stmtIP->execute([$ip, $cc, $cn]);
+        $stmtIP = $pdo->prepare("INSERT INTO ip_tracking (ip_address, country_code, country_name) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE total_attacks = total_attacks + 1, last_seen = ?");
+        $lastSeen = $timestamp ? date('Y-m-d H:i:s', $timestamp) : date('Y-m-d H:i:s');
+        $stmtIP->execute([$ip, $cc, $cn, $lastSeen]);
         
         $stmtGetIP = $pdo->prepare("SELECT id FROM ip_tracking WHERE ip_address = ?");
         $stmtGetIP->execute([$ip]);
         $ip_id = $stmtGetIP->fetchColumn();
 
         // Insert log
-        $stmt = $pdo->prepare("INSERT INTO attack_logs (ip_id, user_agent, attempted_username, attempted_password, attack_type, http_method, raw_payload) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$ip_id, $ua, $user, $pass, $attackType, $method, $payload]);
-
-        echo "[" . date('Y-m-d H:i:s') . "] Logged: {$attackType} from {$ip} ({$cn}) - User: {$user}\n";
+        $sql = "INSERT INTO attack_logs (ip_id, user_agent, attempted_username, attempted_password, attack_type, http_method, raw_payload" . ($timestamp ? ", timestamp" : "") . ") VALUES (?, ?, ?, ?, ?, ?, ?" . ($timestamp ? ", ?" : "") . ")";
+        $stmt = $pdo->prepare($sql);
+        $params = [$ip_id, $ua, $user, $pass, $attackType, $method, $payload];
+        if ($timestamp) {
+            $params[] = date('Y-m-d H:i:s', $timestamp);
+        }
+        $stmt->execute($params);
+        return true;
     } catch (\PDOException $e) {
-        echo "[" . date('Y-m-d H:i:s') . "] Error: " . $e->getMessage() . "\n";
+        return $e->getMessage();
     }
+}
 
+if ($seed) {
+    echo "--- Seeding Historical Data (7 Day Window) ---\n";
+    $now = time();
+    $start = $now - (7 * 24 * 3600);
+    $totalSeeded = 0;
+
+    for ($t = $start; $t <= $now; $t += 3600) { // Every hour
+        $hourStr = date('Y-m-d H:00', $t);
+        // Create a "curve" - fewer attacks at night, more during "peak" hours
+        $hourInt = (int)date('H', $t);
+        $base = ($hourInt > 8 && $hourInt < 20) ? 15 : 5;
+        $count = rand($base, $base + 20);
+        
+        echo "Seeding {$hourStr}: {$count} attacks... ";
+        for ($i = 0; $i < $count; $i++) {
+            // Randomly offset within the hour
+            $offsetT = $t + rand(0, 3599);
+            if ($offsetT > $now) $offsetT = $now;
+            insert_random_log($pdo, $ips, $userAgents, $usernames, $passwords, $methods, $offsetT);
+            $totalSeeded++;
+        }
+        echo "Done.\n";
+    }
+    echo "Seeding complete. Total records: {$totalSeeded}\n\n";
+}
+
+echo "--- HoneyForm Live Log Generator ---\n";
+echo "Starting simulation. Press Ctrl+C to stop.\n";
+echo "Interval: every {$interval} seconds.\n\n";
+
+while (true) {
+    $res = insert_random_log($pdo, $ips, $userAgents, $usernames, $passwords, $methods);
+    if ($res === true) {
+        echo "[" . date('Y-m-d H:i:s') . "] Logged attack entry.\n";
+    } else {
+        echo "[" . date('Y-m-d H:i:s') . "] Error: {$res}\n";
+    }
     sleep($interval);
 }
+
