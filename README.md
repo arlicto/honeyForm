@@ -143,6 +143,43 @@ If you are presenting HoneyForm and need to demonstrate real-time data updates w
 
 ---
 
+## 🧪 Testing Attack Detection
+
+You can test the honeypot's detection engine using either the **Web Interface** (fake login page) for a realistic attacker experience, or `curl` for automated simulation. All attempts will immediately appear in the **Forensic Stream Analyzer**.
+
+### 1. SQL Injection (SQLi)
+Simulate an authentication bypass attempt using common SQL injection tokens.
+*   **Web Interface**: Navigate to `http://localhost:8000/` and enter `' OR 1=1 --` in the **Admin Username** field.
+*   **CLI (curl)**:
+    ```bash
+    curl -X POST http://localhost:8000/ -d "username=admin' OR 1=1 --&password=password"
+    ```
+
+### 2. Path Traversal
+Attempt to access sensitive system files through directory traversal patterns.
+*   **Browser**: Navigate to `http://localhost:8000/?file=../../../../etc/passwd`
+*   **CLI (curl)**:
+    ```bash
+    curl "http://localhost:8000/gateway.php?file=../../../../etc/passwd"
+    ```
+
+### 3. Brute Force
+Perform standard login attempts. Multiple attempts from the same IP will trigger alerts in the dashboard.
+*   **Web Interface**: Try several random username/password combinations at `http://localhost:8000/`.
+*   **CLI (curl)**:
+    ```bash
+    curl -X POST http://localhost:8000/ -d "username=root&password=password123"
+    ```
+
+### 4. Automated Scanners
+Simulate a scan from a known pen-testing tool by modifying the `User-Agent` header. This is best tested via `curl`.
+```bash
+# Simulate sqlmap
+curl -A "sqlmap/1.4.11 (http://sqlmap.org)" http://localhost:8000/
+
+# Simulate Nikto
+curl -A "Nikto/2.1.6" http://localhost:8000/
+```
 
 ---
 
