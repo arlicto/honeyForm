@@ -171,6 +171,13 @@ try {
         $stmtLast = $pdo->query("SELECT MAX(timestamp) AS last_update FROM attack_logs");
         $lastUpdated = $stmtLast->fetchColumn();
         $lastUpdatedDisplay = $lastUpdated ? date('Y-m-d H:i:s', strtotime($lastUpdated)) . ' UTC' : 'N/A';
+
+        // Attack type percentages (shared helper)
+        $attackTypePercents = stats_get_attack_type_percentages($pdo);
+        $sqliPercent = $attackTypePercents['SQLi'] ?? 0;
+        $bruteForcePercent = $attackTypePercents['Brute Force'] ?? 0;
+        $pathTraversalPercent = $attackTypePercents['Path Traversal'] ?? 0;
+
     } catch (\PDOException $e) {
         $lastUpdatedDisplay = 'N/A';
     }
@@ -469,15 +476,15 @@ try {
 <div class="space-y-sm">
 <div class="flex items-center justify-between">
 <span class="text-body-base font-medium">SQL Injection</span>
-<span class="font-label-caps text-label-caps bg-error-container text-error px-xs py-[2px] rounded">42%</span>
+<span class="font-label-caps text-label-caps bg-error-container text-error px-xs py-[2px] rounded"><?= htmlspecialchars((string)$sqliPercent) ?>%</span>
 </div>
 <div class="flex items-center justify-between">
 <span class="text-body-base font-medium">Brute Force</span>
-<span class="font-label-caps text-label-caps bg-tertiary-container text-on-tertiary-container px-xs py-[2px] rounded">31%</span>
+<span class="font-label-caps text-label-caps bg-tertiary-container text-on-tertiary-container px-xs py-[2px] rounded"><?= htmlspecialchars((string)$bruteForcePercent) ?>%</span>
 </div>
 <div class="flex items-center justify-between">
 <span class="text-body-base font-medium">Path Traversal</span>
-<span class="font-label-caps text-label-caps bg-secondary-container text-on-secondary-container px-xs py-[2px] rounded">12%</span>
+<span class="font-label-caps text-label-caps bg-secondary-container text-on-secondary-container px-xs py-[2px] rounded"><?= htmlspecialchars((string)$pathTraversalPercent) ?>%</span>
 </div>
 </div>
 </div>
