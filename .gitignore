@@ -1,4 +1,5 @@
 .env
 technology_project_brief.pdf
 install.lock
-
+.agents/
+.sessions/
