@@ -208,10 +208,7 @@ curl -A "Nikto/2.1.6" http://localhost:8000/
 | `llm_insights.php` | API endpoint for triggering and polling AI security analysis. |
 | `llm_worker.php` | Background worker that communicates with Ollama for forensic insights. |
 
----
 
-
----
 
 ## 📝 Troubleshooting
 *   **Database Connection Failed**: Double-check your `.env` credentials and ensure the MySQL service is running.

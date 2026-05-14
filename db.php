@@ -144,7 +144,7 @@ function detect_attack_type(array $data): string {
     // Check request URI and params for path traversal / sensitive file access
     $requestUri = $data['request_uri'] ?? '';
     $params = $data['params'] ?? [];
-    $traversalPatterns = ['../', '..\\', '/etc/passwd', 'admin.php', 'wp-admin', 'cmd='];
+    $traversalPatterns = ['../', '..\\', '/etc/passwd', 'wp-admin', 'cmd='];
     foreach ($traversalPatterns as $pattern) {
         if ($pattern !== '' && (stripos($requestUri, $pattern) !== false)) {
             return 'Path Traversal';
@@ -291,6 +291,19 @@ function stats_get_cached_metric(string $key, PDO $pdo = null): int {
         return (int)$stmt->fetchColumn() ?: 0;
     } catch (\PDOException $e) {
         return 0;
+    }
+}
+
+/**
+ * Increments a cached metric in dashboard_stats.
+ */
+function stats_increment_metric(string $key, PDO $pdo = null): void {
+    $pdo = $pdo ?? ($GLOBALS['pdo'] ?? null);
+    if (!$pdo) return;
+    try {
+        $pdo->prepare("INSERT INTO dashboard_stats (stat_key, stat_value) VALUES (?, 1) ON DUPLICATE KEY UPDATE stat_value = stat_value + 1")->execute([$key]);
+    } catch (\PDOException $e) {
+        // Log error
     }
 }
 

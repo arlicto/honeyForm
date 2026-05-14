@@ -46,8 +46,9 @@ if ($clear) {
         $pdo->exec("SET FOREIGN_KEY_CHECKS = 0;");
         $pdo->exec("TRUNCATE TABLE attack_logs;");
         $pdo->exec("TRUNCATE TABLE ip_tracking;");
+        $pdo->exec("TRUNCATE TABLE dashboard_stats;");
         $pdo->exec("SET FOREIGN_KEY_CHECKS = 1;");
-        echo "Logs cleared.\n\n";
+        echo "Logs and cached statistics cleared.\n\n";
         
         if ($clearOnly) {
             exit(0);
@@ -78,6 +79,8 @@ $userAgents = [
     'Mozilla/5.0 (compatible; Acunetix/13.0; http://www.acunetix.com)',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     'Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Mobile/15E148 Safari/604.1',
+    'curl/7.68.0',
+    'curl/8.4.0 (x86_64-pc-linux-gnu) libcurl/8.4.0 OpenSSL/3.0.10',
 ];
 
 $usernames = ['admin', 'root', 'user', 'guest', 'administrator', 'webmaster', 'support', 'test', 'oracle', 'mysql'];
@@ -98,16 +101,27 @@ function insert_random_log($pdo, $ips, $userAgents, $usernames, $passwords, $met
     $pass = $passwords[array_rand($passwords)];
     $method = $methods[array_rand($methods)];
     
+    $uris = [
+        '/admin.php?id=' . rand(1, 100),
+        '/gateway.php?file=../../etc/passwd',
+        '/index.php?page=contact',
+        '/config.php?debug=1',
+        '/shell.php?cmd=whoami',
+        '/wp-admin/load-styles.php?c=1',
+        '/login.php?redirect=dashboard'
+    ];
+    $uri = $uris[array_rand($uris)];
+
     $attackType = detect_attack_type([
         'username' => $user,
         'password' => $pass,
         'user_agent' => $ua,
-        'request_uri' => '/admin.php?id=' . rand(1, 100),
+        'request_uri' => $uri,
         'params' => ['user' => $user, 'pass' => $pass],
         'method' => $method
     ]);
 
-    $payload = json_encode(['username' => $user, 'password' => $pass, 'ts' => $timestamp ?? time()]);
+    $payload = json_encode(['username' => $user, 'password' => $pass, 'ts' => $timestamp ?? time(), 'request_uri' => $uri]);
 
     try {
         // Upsert IP tracking
@@ -127,6 +141,16 @@ function insert_random_log($pdo, $ips, $userAgents, $usernames, $passwords, $met
             $params[] = date('Y-m-d H:i:s', $timestamp);
         }
         $stmt->execute($params);
+
+        // Update cached stats in real-time using helper
+        stats_increment_metric('total_attacks', $pdo);
+        stats_increment_metric('attack_' . strtolower(str_replace(' ', '', $attackType)), $pdo);
+        foreach (['sqlmap', 'nikto', 'hydra', 'curl'] as $tool) {
+            if (stripos($ua, $tool) !== false) {
+                stats_increment_metric("tool_{$tool}", $pdo);
+            }
+        }
+
         return true;
     } catch (\PDOException $e) {
         return $e->getMessage();
@@ -156,7 +180,10 @@ if ($seed) {
         }
         echo "Done.\n";
     }
-    echo "Seeding complete. Total records: {$totalSeeded}\n\n";
+    echo "Seeding complete. Total records: {$totalSeeded}\n";
+    echo "Rebuilding statistics cache... ";
+    stats_rebuild_all($pdo);
+    echo "Done.\n\n";
 }
 
 echo "--- HoneyForm Live Log Generator ---\n";

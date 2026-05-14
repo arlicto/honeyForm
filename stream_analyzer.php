@@ -137,40 +137,9 @@ try {
     $mostActiveNarrative = '';
     if (!empty($mostActive) && $mostActiveIp !== 'N/A') {
         try {
-            $stmtTopPayload = $pdo->prepare(
-                "SELECT raw_payload, COUNT(*) as c FROM attack_logs al JOIN ip_tracking ip ON al.ip_id = ip.id WHERE ip.ip_address = ? AND DATE(al.timestamp) = CURRENT_DATE GROUP BY raw_payload ORDER BY c DESC LIMIT 1"
-            );
-            $stmtTopPayload->execute([$mostActiveIp]);
-            $topRow = $stmtTopPayload->fetch();
-
-            if ($topRow && !empty($topRow['raw_payload'])) {
-                $payloadText = $topRow['raw_payload'];
-                $decoded = json_decode($payloadText, true);
-
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    if (!empty($decoded['uri'])) {
-                        $endpoint = $decoded['uri'];
-                        $mostActiveNarrative = "Originating from {$mostActiveCountryName}, {$mostActiveCountryCode}. Targeted attempts on {$endpoint} detected.";
-                    } elseif (!empty($decoded['GET_params'])) {
-                        $mostActiveNarrative = "Originating from {$mostActiveCountryName}, {$mostActiveCountryCode}. Representative GET params: " . substr(json_encode($decoded['GET_params']), 0, 200);
-                    } else {
-                        $mostActiveNarrative = "Originating from {$mostActiveCountryName}, {$mostActiveCountryCode}. Representative payload: " . substr($payloadText, 0, 200);
-                    }
-                } else {
-                    // raw text — try to extract a likely endpoint or show a short snippet
-                    if (preg_match('/(\/[\w\-\/]*wp-admin[\w\-\/]*)/i', $payloadText, $m)) {
-                        $endpoint = $m[1];
-                        $mostActiveNarrative = "Originating from {$mostActiveCountryName}, {$mostActiveCountryCode}. Targeted attempts on {$endpoint} detected.";
-                    } else {
-                        $mostActiveNarrative = "Originating from {$mostActiveCountryName}, {$mostActiveCountryCode}. Representative payload: " . substr($payloadText, 0, 200);
-                    }
-                }
-            } else {
-                $mostActiveNarrative = "Originating from {$mostActiveCountryName}, {$mostActiveCountryCode}. {$mostActiveReqs} requests observed today.";
-            }
-        } catch (\PDOException $e) {
-            // Fallback to concise summary on error
-            $mostActiveNarrative = "Originating from {$mostActiveCountryName}, {$mostActiveCountryCode}. {$mostActiveReqs} requests observed today.";
+            $mostActiveNarrative = "Originating from {$mostActiveCountryName}, {$mostActiveCountryCode}. {$mostActiveReqs} suspicious requests intercepted today.";
+        } catch (\Exception $e) {
+            $mostActiveNarrative = "Originating from {$mostActiveCountryName}, {$mostActiveCountryCode}. Activity detected.";
         }
     } else {
         $mostActiveNarrative = 'No activity recorded for today.';
