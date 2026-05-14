@@ -23,31 +23,31 @@ if ($hasFilters && !verify_csrf_token($csrfToken)) {
     $csrfError = 'Invalid CSRF token.';
 }
 
-// Normalize and validate datetime-local inputs (expected format: YYYY-MM-DDTHH:MM)
+// Normalize and validate date inputs (expected format: YYYY-MM-DD)
 $filterStart = null;
 $filterEnd = null;
 $filterStartValue = '';
 $filterEndValue = '';
 if ($filterStartRaw !== '') {
-    $dt = DateTime::createFromFormat('Y-m-d\TH:i', $filterStartRaw);
+    $dt = DateTime::createFromFormat('Y-m-d', $filterStartRaw);
     if (!$dt) {
-        $dt = DateTime::createFromFormat('Y-m-d H:i:s', $filterStartRaw);
+        $dt = DateTime::createFromFormat('Y-m-d\TH:i', $filterStartRaw);
     }
     if ($dt) {
+        $dt->setTime(0, 0, 0);
         $filterStart = $dt->format('Y-m-d H:i:s');
-        $filterStartValue = $dt->format('Y-m-d\TH:i');
+        $filterStartValue = $dt->format('Y-m-d');
     }
 }
 if ($filterEndRaw !== '') {
-    $dt = DateTime::createFromFormat('Y-m-d\TH:i', $filterEndRaw);
+    $dt = DateTime::createFromFormat('Y-m-d', $filterEndRaw);
     if (!$dt) {
-        $dt = DateTime::createFromFormat('Y-m-d H:i:s', $filterEndRaw);
+        $dt = DateTime::createFromFormat('Y-m-d\TH:i', $filterEndRaw);
     }
     if ($dt) {
-        // end of minute -> add 59 seconds
-        $dt->setTime((int)$dt->format('H'), (int)$dt->format('i'), 59);
+        $dt->setTime(23, 59, 59);
         $filterEnd = $dt->format('Y-m-d H:i:s');
-        $filterEndValue = $dt->format('Y-m-d\TH:i');
+        $filterEndValue = $dt->format('Y-m-d');
     }
 }
 
@@ -68,6 +68,16 @@ try {
     if ($filterType !== '') {
         $where[] = 'al.attack_type = ?';
         $params[] = $filterType;
+    }
+
+    if ($filterStart !== null) {
+        $where[] = 'al.timestamp >= ?';
+        $params[] = $filterStart;
+    }
+
+    if ($filterEnd !== null) {
+        $where[] = 'al.timestamp <= ?';
+        $params[] = $filterEnd;
     }
 
     $sql = "
@@ -354,9 +364,9 @@ try {
 <div class="flex-1 min-w-[300px]">
 <label class="font-label-caps text-label-caps text-on-surface-variant mb-xs block">TIME RANGE</label>
 <div class="flex items-center gap-sm">
-<input name="start_date" class="w-full bg-white border border-outline-variant/50 rounded-lg px-sm py-xs text-body-base focus:ring-1 focus:ring-primary outline-none" type="datetime-local" value="<?= htmlspecialchars($filterStartValue) ?>" />
+<input name="start_date" class="w-full bg-white border border-outline-variant/50 rounded-lg px-sm py-xs text-body-base focus:ring-1 focus:ring-primary outline-none" type="date" value="<?= htmlspecialchars($filterStartValue) ?>" />
 <span class="text-on-surface-variant">to</span>
-<input name="end_date" class="w-full bg-white border border-outline-variant/50 rounded-lg px-sm py-xs text-body-base focus:ring-1 focus:ring-primary outline-none" type="datetime-local" value="<?= htmlspecialchars($filterEndValue) ?>" />
+<input name="end_date" class="w-full bg-white border border-outline-variant/50 rounded-lg px-sm py-xs text-body-base focus:ring-1 focus:ring-primary outline-none" type="date" value="<?= htmlspecialchars($filterEndValue) ?>" />
 </div>
 </div>
 <button class="bg-primary text-on-primary px-xl py-sm rounded-lg font-bold hover:opacity-90 transition-all active:scale-95 whitespace-nowrap" type="submit">Execute Query</button>

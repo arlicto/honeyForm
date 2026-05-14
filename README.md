@@ -12,7 +12,8 @@ HoneyForm is a professional-grade PHP/MySQL honeypot designed for high-fidelity 
 *   **🌍 Intelligent Geolocation**: Automated IP-to-Country mapping for every attack attempt using external API integration and local caching.
 *   **🛠️ Pen-test Tool Detection**: Specialized signatures to identify common security tools like `sqlmap`, `nikto`, `hydra`, and `nmap`.
 *   **🔍 Forensic Stream Analyzer**: A dedicated tool for deep-diving into raw payloads, user agents, and historical attack patterns.
-*   **⚡ Live Traffic Simulator**: A CLI-based generator to populate the dashboard with realistic attack data fortesting.
+*   **🧠 Local LLM Forensic Insights**: Integrated background analysis using Ollama (Llama 3.2 3B) to provide concise, expert security summaries and attack attribution (Bot vs. Human).
+*   **⚡ Live Traffic Simulator**: A CLI-based generator to populate the dashboard with realistic attack data for testing.
 
 ---
 
@@ -27,6 +28,7 @@ HoneyForm leverages a modern, lightweight tech stack for maximum performance and
 *   **Visualization**: Chart.js 4.x
 *   **Typography & Icons**: Google Fonts (Inter, JetBrains Mono) & Material Symbols
 *   **APIs**: ipapi.co (Geolocation)
+*   **AI/LLM**: Ollama (Running `llama3.2:3b` locally)
 
 ---
 
@@ -37,6 +39,7 @@ Before installing, ensure your environment meets the following requirements:
 *   **PHP 8.0+** (Required extensions: `pdo_mysql`, `json`, `session`)
 *   **MySQL 5.7+** or **MariaDB 10.3+**
 *   **Web Server** (Apache, Nginx, or the built-in PHP server for testing)
+*   **Ollama** (Optional, required for AI insights; must have `llama3.2:3b` pulled)
 *   **Internet Access** (Required for loading Google Fonts, Chart.js, and Geolocation API lookups)
 
 ---
@@ -202,13 +205,11 @@ curl -A "Nikto/2.1.6" http://localhost:8000/
 | `stream_analyzer.php` | Forensic tool for deep-diving into individual attack logs. |
 | `live_log_generator.php` | CLI tool for simulating live attack traffic. |
 | `db.php` | Core logic for database connectivity, security, and geolocation. |
+| `llm_insights.php` | API endpoint for triggering and polling AI security analysis. |
+| `llm_worker.php` | Background worker that communicates with Ollama for forensic insights. |
 
 ---
 
-## 🔒 Security Best Practices
-*   **Production Deployment**: If deploying to a live server, ensure `staff_gate_7.php` is renamed or further protected via `.htaccess` / Basic Auth.
-*   **Log Files**: Ensure the `logs/` directory created by `setup_db.php` is not web-accessible.
-*   **Environment**: Keep your `.env` file outside of the web root or blocked via server configuration.
 
 ---
 

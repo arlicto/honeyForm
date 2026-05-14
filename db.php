@@ -237,25 +237,16 @@ function require_csrf(?string $token = null, &$error = null): bool {
  * Functions accept an optional PDO instance; if none provided the global $pdo is used.
  */
 function stats_get_total_attacks(PDO $pdo = null): int {
-    $pdo = $pdo ?? ($GLOBALS['pdo'] ?? null);
-    if (!$pdo) return 0;
-    try {
-        $stmt = $pdo->query("SELECT COUNT(*) FROM attack_logs");
-        return (int)$stmt->fetchColumn();
-    } catch (\PDOException $e) {
-        return 0;
-    }
+    return stats_get_cached_metric('total_attacks', $pdo);
 }
 
 function stats_get_attack_type_counts(PDO $pdo = null): array {
-    $pdo = $pdo ?? ($GLOBALS['pdo'] ?? null);
-    if (!$pdo) return [];
-    try {
-        $stmt = $pdo->query("SELECT attack_type, COUNT(*) as c FROM attack_logs GROUP BY attack_type");
-        return $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
-    } catch (\PDOException $e) {
-        return [];
-    }
+    return [
+        'SQLi' => stats_get_cached_metric('attack_sqli', $pdo),
+        'Brute Force' => stats_get_cached_metric('attack_bruteforce', $pdo),
+        'Path Traversal' => stats_get_cached_metric('attack_pathtraversal', $pdo),
+        'Scanner' => stats_get_cached_metric('attack_scanner', $pdo),
+    ];
 }
 
 function stats_get_attack_type_percentages(PDO $pdo = null): array {
@@ -284,6 +275,56 @@ function stats_get_top_ips(PDO $pdo = null, int $limit = 10): array {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (\PDOException $e) {
         return [];
+    }
+}
+
+/**
+ * Returns a cached metric from dashboard_stats. 
+ * Falls back to 0 if key not found.
+ */
+function stats_get_cached_metric(string $key, PDO $pdo = null): int {
+    $pdo = $pdo ?? ($GLOBALS['pdo'] ?? null);
+    if (!$pdo) return 0;
+    try {
+        $stmt = $pdo->prepare("SELECT stat_value FROM dashboard_stats WHERE stat_key = ?");
+        $stmt->execute([$key]);
+        return (int)$stmt->fetchColumn() ?: 0;
+    } catch (\PDOException $e) {
+        return 0;
+    }
+}
+
+/**
+ * Rebuilds the dashboard_stats table from raw attack_logs.
+ * Useful for migrations or after bulk deletions.
+ */
+function stats_rebuild_all(PDO $pdo = null): void {
+    $pdo = $pdo ?? ($GLOBALS['pdo'] ?? null);
+    if (!$pdo) return;
+    try {
+        $pdo->exec("TRUNCATE TABLE dashboard_stats");
+        
+        // Total attacks
+        $total = $pdo->query("SELECT COUNT(*) FROM attack_logs")->fetchColumn();
+        $pdo->prepare("INSERT INTO dashboard_stats (stat_key, stat_value) VALUES ('total_attacks', ?)")->execute([$total]);
+        
+        // Attack types
+        $stmt = $pdo->query("SELECT attack_type, COUNT(*) as c FROM attack_logs GROUP BY attack_type");
+        while ($row = $stmt->fetch()) {
+            $key = 'attack_' . strtolower(str_replace(' ', '', $row['attack_type']));
+            $pdo->prepare("INSERT INTO dashboard_stats (stat_key, stat_value) VALUES (?, ?)")->execute([$key, $row['c']]);
+        }
+        
+        // Tools
+        $tools = ['sqlmap', 'nikto', 'hydra', 'curl'];
+        foreach ($tools as $tool) {
+            $count = $pdo->prepare("SELECT COUNT(*) FROM attack_logs WHERE user_agent LIKE ?");
+            $count->execute(["%{$tool}%"]);
+            $c = $count->fetchColumn();
+            $pdo->prepare("INSERT INTO dashboard_stats (stat_key, stat_value) VALUES (?, ?)")->execute(["tool_{$tool}", $c]);
+        }
+    } catch (\PDOException $e) {
+        // Log error
     }
 }
 

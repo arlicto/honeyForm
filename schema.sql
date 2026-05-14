@@ -51,5 +51,59 @@ CREATE TABLE attack_logs (
     http_method VARCHAR(10),
     raw_payload TEXT,
     FOREIGN KEY (ip_id) REFERENCES ip_tracking(id) ON DELETE CASCADE,
-    INDEX idx_attack_logs_timestamp (timestamp)
+    INDEX idx_attack_logs_timestamp (timestamp),
+    INDEX idx_attack_logs_type (attack_type)
 );
+
+-- Aggregate table for dashboard metrics
+CREATE TABLE dashboard_stats (
+    stat_key VARCHAR(50) PRIMARY KEY,
+    stat_value BIGINT DEFAULT 0
+) ENGINE=InnoDB;
+
+-- Triggers for real-time metric aggregation
+DELIMITER //
+
+CREATE TRIGGER after_attack_log_insert
+AFTER INSERT ON attack_logs
+FOR EACH ROW
+BEGIN
+    -- Increment total attacks
+    INSERT INTO dashboard_stats (stat_key, stat_value) VALUES ('total_attacks', 1)
+    ON DUPLICATE KEY UPDATE stat_value = stat_value + 1;
+    
+    -- Increment attack type stats
+    IF NEW.attack_type = 'SQLi' THEN
+        INSERT INTO dashboard_stats (stat_key, stat_value) VALUES ('attack_sqli', 1)
+        ON DUPLICATE KEY UPDATE stat_value = stat_value + 1;
+    ELSEIF NEW.attack_type = 'Brute Force' THEN
+        INSERT INTO dashboard_stats (stat_key, stat_value) VALUES ('attack_bruteforce', 1)
+        ON DUPLICATE KEY UPDATE stat_value = stat_value + 1;
+    ELSEIF NEW.attack_type = 'Path Traversal' THEN
+        INSERT INTO dashboard_stats (stat_key, stat_value) VALUES ('attack_pathtraversal', 1)
+        ON DUPLICATE KEY UPDATE stat_value = stat_value + 1;
+    ELSEIF NEW.attack_type = 'Scanner' THEN
+        INSERT INTO dashboard_stats (stat_key, stat_value) VALUES ('attack_scanner', 1)
+        ON DUPLICATE KEY UPDATE stat_value = stat_value + 1;
+    END IF;
+    
+    -- Increment tool stats
+    IF NEW.user_agent LIKE '%sqlmap%' THEN
+        INSERT INTO dashboard_stats (stat_key, stat_value) VALUES ('tool_sqlmap', 1)
+        ON DUPLICATE KEY UPDATE stat_value = stat_value + 1;
+    END IF;
+    IF NEW.user_agent LIKE '%nikto%' THEN
+        INSERT INTO dashboard_stats (stat_key, stat_value) VALUES ('tool_nikto', 1)
+        ON DUPLICATE KEY UPDATE stat_value = stat_value + 1;
+    END IF;
+    IF NEW.user_agent LIKE '%hydra%' THEN
+        INSERT INTO dashboard_stats (stat_key, stat_value) VALUES ('tool_hydra', 1)
+        ON DUPLICATE KEY UPDATE stat_value = stat_value + 1;
+    END IF;
+    IF NEW.user_agent LIKE '%curl%' THEN
+        INSERT INTO dashboard_stats (stat_key, stat_value) VALUES ('tool_curl', 1)
+        ON DUPLICATE KEY UPDATE stat_value = stat_value + 1;
+    END IF;
+END //
+
+DELIMITER ;

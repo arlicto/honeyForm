@@ -67,8 +67,7 @@ if (!$isAdmin) {
 // Admin session already started above and verified for access control
 
 // 1. Total attacks
-$stmtTotal = $pdo->query("SELECT COUNT(*) FROM attack_logs");
-$totalAttacks = $stmtTotal->fetchColumn() ?: 0;
+$totalAttacks = stats_get_total_attacks();
 
 // 2. Unique IPs
 $stmtIPs = $pdo->query("SELECT COUNT(*) FROM ip_tracking");
@@ -92,17 +91,10 @@ $bruteForcePercent = $attackTypePercents['Brute Force'] ?? 0;
 $pathTraversalPercent = $attackTypePercents['Path Traversal'] ?? 0;
 
 // 5. Pen-test Tools Detection
-$stmtSqlmap = $pdo->query("SELECT COUNT(*) FROM attack_logs WHERE LOWER(user_agent) LIKE '%sqlmap%'");
-$sqlmapCount = $stmtSqlmap->fetchColumn() ?: 0;
-
-$stmtNikto = $pdo->query("SELECT COUNT(*) FROM attack_logs WHERE LOWER(user_agent) LIKE '%nikto%'");
-$niktoCount = $stmtNikto->fetchColumn() ?: 0;
-
-$stmtHydra = $pdo->query("SELECT COUNT(*) FROM attack_logs WHERE LOWER(user_agent) LIKE '%hydra%'");
-$hydraCount = $stmtHydra->fetchColumn() ?: 0;
-
-$stmtCurl = $pdo->query("SELECT COUNT(*) FROM attack_logs WHERE LOWER(user_agent) LIKE '%curl%'");
-$curlCount = $stmtCurl->fetchColumn() ?: 0;
+$sqlmapCount = stats_get_cached_metric('tool_sqlmap');
+$niktoCount = stats_get_cached_metric('tool_nikto');
+$hydraCount = stats_get_cached_metric('tool_hydra');
+$curlCount = stats_get_cached_metric('tool_curl');
 
 // 6. Top 10 IPs (via shared stats helpers)
 $topIPs = stats_get_top_ips($pdo, 10);
@@ -193,9 +185,11 @@ $daysOfWeek = [1 => 'Sun', 2 => 'Mon', 3 => 'Tue', 4 => 'Wed', 5 => 'Thu', 6 => 
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'><rect%20width='100'%20height='100'%20rx='15'%20fill='%23006671'/><text%20x='50'%20y='60'%20font-size='60'%20text-anchor='middle'%20fill='white'%20font-family='Arial'>H</text></svg>"/>
-<meta http-equiv="refresh" content="10"/>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<meta http-equiv="refresh" content="60"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries,typography"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
@@ -500,6 +494,152 @@ foreach ($topCountries as $index => $countryRow):
 </div>
 </div>
 </div>
+
+<!-- AI Security Insights -->
+<div class="glass-card flex flex-col gap-md border-l-4 border-l-primary" id="ai-insights-container">
+    <div class="flex justify-between items-center">
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary">auto_awesome</span>
+            <h4 class="font-label-caps text-label-caps text-on-surface-variant">HERE'S AN EXPERT ANALYSIS</h4>
+        </div>
+        <button id="refresh-insights-btn" class="flex items-center gap-1 text-xs font-bold text-primary hover:text-on-primary-container bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded transition-colors">
+            <span class="material-symbols-outlined text-[14px]">bolt</span> <span class="hidden sm:inline">Generate Insights</span>
+        </button>
+    </div>
+    <div id="ai-insights-content" class="text-body-base text-on-surface">
+        <div class="flex items-center gap-2"><span class="material-symbols-outlined animate-spin text-primary">sync</span> <span class="text-on-surface-variant italic">Fetching insights...</span></div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    let pollInterval = null;
+
+    function fetchInsights(force = false) {
+        const contentDiv = document.getElementById('ai-insights-content');
+        const btn = document.getElementById('refresh-insights-btn');
+        const btnIcon = btn.querySelector('.material-symbols-outlined');
+        
+        if (force) {
+            contentDiv.innerHTML = '<div class="flex items-center gap-2"><span class="material-symbols-outlined animate-spin text-primary">sync</span> <span class="text-on-surface-variant italic">Requesting background analysis...</span></div>';
+            btnIcon.classList.add('animate-spin');
+            btnIcon.innerText = 'sync';
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+
+        fetch('llm_insights.php' + (force ? '?force=1' : ''))
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'processing') {
+                    // Show processing state
+                    contentDiv.innerHTML = '<div class="flex items-center gap-2"><span class="material-symbols-outlined animate-spin text-primary">sync</span> <span class="text-on-surface-variant italic">AI is analyzing logs in the background. You can continue using the dashboard...</span></div>';
+                    btnIcon.classList.add('animate-spin');
+                    btnIcon.innerText = 'sync';
+                    btn.disabled = true;
+                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                    
+                    // Poll again in 3 seconds
+                    if (!pollInterval) {
+                        pollInterval = setTimeout(() => {
+                            pollInterval = null;
+                            fetchInsights(false);
+                        }, 3000);
+                    }
+                    return;
+                }
+
+                // If we reach here, status is idle or error
+                btnIcon.classList.remove('animate-spin');
+                btnIcon.innerText = 'bolt';
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                if (data.error) {
+                    contentDiv.innerHTML = `<span class="text-error font-bold">Error:</span> ${data.error}`;
+                } else {
+                    let text = data.insight;
+                    if (!text || text.trim() === '') {
+                        contentDiv.innerHTML = '<span class="text-on-surface-variant italic">Click "Generate Insights" to run the analysis.</span>';
+                        return;
+                    }
+                    
+                    // Parse markdown using marked.js
+                    let parsedHtml = marked.parse(text);
+                    
+                    // Sanitize HTML using DOMPurify
+                    let sanitizedHtml = DOMPurify.sanitize(parsedHtml);
+                    
+                    let cacheInfo = data.timestamp ? `<div class="text-[10px] text-outline mt-4 text-right" title="Last generated analysis">Generated: ${new Date(data.timestamp * 1000).toLocaleString()}</div>` : '';
+                    contentDiv.innerHTML = `<div class="prose prose-sm prose-primary max-w-none prose-h2:text-[15px] prose-h2:mt-4 prose-h2:mb-2 prose-h2:uppercase prose-h2:tracking-wider prose-h3:text-[14px] prose-p:leading-relaxed prose-li:my-0 text-on-surface-variant">${sanitizedHtml}${cacheInfo}</div>`;
+                }
+            })
+            .catch(err => {
+                btnIcon.classList.remove('animate-spin');
+                btnIcon.innerText = 'bolt';
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                contentDiv.innerHTML = `<span class="text-error font-bold">Error:</span> Failed to fetch insights.`;
+                console.error(err);
+            });
+    }
+
+    // Fetch on initial load
+    fetchInsights(false);
+
+    document.getElementById('refresh-insights-btn').addEventListener('click', function(e) {
+        e.preventDefault();
+        fetchInsights(true);
+    });
+});
+</script>
+
+<!-- Heatmap -->
+<div class="glass-card overflow-x-auto">
+<h4 class="font-label-caps text-label-caps text-on-surface-variant mb-md">ATTACK INTENSITY HEATMAP (DAY × HOUR)</h4>
+<div class="min-w-[800px]">
+    <div class="flex">
+        <div class="w-12"></div>
+        <?php for($h=0; $h<24; $h++): ?>
+            <div class="flex-1 text-center font-data-mono text-[10px] text-outline"><?= str_pad($h, 2, '0', STR_PAD_LEFT) ?></div>
+        <?php endfor; ?>
+    </div>
+    <?php foreach($daysOfWeek as $dNum => $dName): ?>
+    <div class="flex items-center mt-1">
+        <div class="w-12 font-data-mono text-[10px] text-on-surface-variant text-right pr-2"><?= $dName ?></div>
+        <?php for($h=0; $h<24; $h++): 
+            $val = $heatmapData[$dNum][$h];
+            $opacity = $maxHeat > 0 ? ($val / $maxHeat) : 0;
+            if ($val > 0 && $opacity < 0.2) $opacity = 0.2; 
+        ?>
+            <div class="flex-1 aspect-square mx-[1px] rounded-sm group relative cursor-crosshair transition-all hover:scale-110 hover:z-10" style="background-color: rgba(0, 102, 113, <?= $opacity ?>); <?= $val == 0 ? 'background-color: #eaeff0;' : '' ?>">
+                <!-- Tooltip -->
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 bg-slate-900 text-white text-[11px] py-2 px-3 rounded-md whitespace-nowrap font-data-mono shadow-2xl border border-white/10 pointer-events-none">
+                    <div class="text-primary-container font-bold mb-0.5"><?= $dName ?> <?= str_pad($h, 2, '0', STR_PAD_LEFT) ?>:00</div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                        <span><?= number_format($val) ?> ATTACKS</span>
+                    </div>
+                    <!-- Tooltip Arrow -->
+                    <div class="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900"></div>
+                </div>
+            </div>
+        <?php endfor; ?>
+    </div>
+    <?php endforeach; ?>
+    <div class="flex items-center justify-end gap-2 mt-4 text-[10px] font-label-caps text-outline">
+        <span>Low</span>
+        <div class="flex gap-[1px]">
+            <div class="w-3 h-3 rounded-sm bg-[#eaeff0]"></div>
+            <div class="w-3 h-3 rounded-sm" style="background-color: rgba(0, 102, 113, 0.3)"></div>
+            <div class="w-3 h-3 rounded-sm" style="background-color: rgba(0, 102, 113, 0.6)"></div>
+            <div class="w-3 h-3 rounded-sm" style="background-color: rgba(0, 102, 113, 1)"></div>
+        </div>
+        <span>High</span>
+    </div>
+</div>
+</div>
+
 </div>
 <!-- Right Column: Top 10 Forensic Lists -->
 <aside class="lg:col-span-4 flex flex-col gap-lg">
@@ -611,46 +751,6 @@ foreach ($topPasswords as $passRow):
 </div>
 </div>
 </aside>
-</div>
-
-<!-- Heatmap -->
-<div class="glass-card mt-lg overflow-x-auto">
-<h4 class="font-label-caps text-label-caps text-on-surface-variant mb-md">ATTACK INTENSITY HEATMAP (DAY × HOUR)</h4>
-<div class="min-w-[800px]">
-    <div class="flex">
-        <div class="w-12"></div>
-        <?php for($h=0; $h<24; $h++): ?>
-            <div class="flex-1 text-center font-data-mono text-[10px] text-outline"><?= str_pad($h, 2, '0', STR_PAD_LEFT) ?></div>
-        <?php endfor; ?>
-    </div>
-    <?php foreach($daysOfWeek as $dNum => $dName): ?>
-    <div class="flex items-center mt-1">
-        <div class="w-12 font-data-mono text-[10px] text-on-surface-variant text-right pr-2"><?= $dName ?></div>
-        <?php for($h=0; $h<24; $h++): 
-            $val = $heatmapData[$dNum][$h];
-            $opacity = $maxHeat > 0 ? ($val / $maxHeat) : 0;
-            if ($val > 0 && $opacity < 0.2) $opacity = 0.2; 
-        ?>
-            <div class="flex-1 aspect-square mx-[1px] rounded-sm group relative cursor-crosshair transition-all hover:scale-110 hover:z-10" style="background-color: rgba(0, 102, 113, <?= $opacity ?>); <?= $val == 0 ? 'background-color: #eaeff0;' : '' ?>">
-                <!-- Tooltip -->
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block z-50 bg-inverse-surface text-on-inverse-surface text-[10px] py-1 px-2 rounded whitespace-nowrap font-data-mono shadow-lg">
-                    <?= $dName ?> <?= str_pad($h, 2, '0', STR_PAD_LEFT) ?>:00<br><?= $val ?> attacks
-                </div>
-            </div>
-        <?php endfor; ?>
-    </div>
-    <?php endforeach; ?>
-    <div class="flex items-center justify-end gap-2 mt-4 text-[10px] font-label-caps text-outline">
-        <span>Low</span>
-        <div class="flex gap-[1px]">
-            <div class="w-3 h-3 rounded-sm bg-[#eaeff0]"></div>
-            <div class="w-3 h-3 rounded-sm" style="background-color: rgba(0, 102, 113, 0.3)"></div>
-            <div class="w-3 h-3 rounded-sm" style="background-color: rgba(0, 102, 113, 0.6)"></div>
-            <div class="w-3 h-3 rounded-sm" style="background-color: rgba(0, 102, 113, 1)"></div>
-        </div>
-        <span>High</span>
-    </div>
-</div>
 </div>
 
 <!-- System Status Footer -->
