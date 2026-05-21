@@ -33,15 +33,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $stmt = $pdo->prepare("INSERT INTO attack_logs (ip_id, user_agent, attempted_username, attempted_password, attack_type, http_method, raw_payload) VALUES (?, ?, ?, ?, ?, ?, ?)");
         $stmt->execute([$ip_id, $userAgent, $username, $password, $attackType, $method, $payload]);
-
-        // Update cached stats in real-time
-        stats_increment_metric('total_attacks', $pdo);
-        stats_increment_metric('attack_' . strtolower(str_replace(' ', '', $attackType)), $pdo);
-        foreach (['sqlmap', 'nikto', 'hydra', 'curl'] as $tool) {
-            if (stripos($userAgent, $tool) !== false) {
-                stats_increment_metric("tool_{$tool}", $pdo);
-            }
-        }
     } catch (\PDOException $e) {
         // Handle silently for the honeypot
     }

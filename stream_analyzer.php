@@ -111,6 +111,36 @@ try {
     $stmt->execute($params);
     $logs = $stmt->fetchAll();
 
+    // Export CSV logic
+    if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+        $exportSql = "
+            SELECT al.timestamp, ip.ip_address, ip.country_name, al.attack_type, al.http_method, al.attempted_username, al.attempted_password, al.user_agent, al.raw_payload
+            FROM attack_logs al
+            JOIN ip_tracking ip ON al.ip_id = ip.id
+        ";
+        if (!empty($where)) {
+            $exportSql .= ' WHERE ' . implode(' AND ', $where);
+        }
+        $exportSql .= ' ORDER BY al.timestamp DESC';
+        
+        $stmtExport = $pdo->prepare($exportSql);
+        $stmtExport->execute($params);
+        
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="honeyform_logs_' . date('Y-m-d_H-i-s') . '.csv"');
+        
+        $output = fopen('php://output', 'w');
+        // Add UTF-8 BOM for Excel compatibility
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+        fputcsv($output, ['Timestamp', 'IP Address', 'Country', 'Attack Type', 'HTTP Method', 'Username', 'Password', 'User Agent', 'Payload']);
+        
+        while ($row = $stmtExport->fetch(PDO::FETCH_ASSOC)) {
+            fputcsv($output, $row);
+        }
+        fclose($output);
+        exit;
+    }
+
     
     // IP Alerting Feature: Find IPs with >= 5 attempts
     $stmtAlerts = $pdo->query("SELECT ip_address FROM ip_tracking WHERE total_attacks >= 5");
@@ -338,7 +368,13 @@ try {
 <input name="end_date" class="w-full bg-white border border-outline-variant/50 rounded-lg px-sm py-xs text-body-base focus:ring-1 focus:ring-primary outline-none" type="date" value="<?= htmlspecialchars($filterEndValue) ?>" />
 </div>
 </div>
-<button class="bg-primary text-on-primary px-xl py-sm rounded-lg font-bold hover:opacity-90 transition-all active:scale-95 whitespace-nowrap" type="submit">Execute Query</button>
+<div class="flex flex-wrap items-end gap-md">
+    <button class="bg-primary text-on-primary px-xl py-sm rounded-lg font-bold hover:opacity-90 transition-all active:scale-95 whitespace-nowrap" type="submit">Execute Query</button>
+    <button name="export" value="csv" class="bg-surface-container-high text-on-surface px-lg py-sm rounded-lg font-bold hover:bg-surface-container-highest transition-all active:scale-95 whitespace-nowrap flex items-center gap-xs" type="submit">
+        <span class="material-symbols-outlined text-[20px]">download</span>
+        Export CSV
+    </button>
+</div>
 </div>
 </div>
 </form>

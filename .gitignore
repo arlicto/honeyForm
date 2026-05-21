@@ -3,3 +3,8 @@ technology_project_brief.pdf
 install.lock
 .agents/
 .sessions/
+logs/
+.vscode/
+.idea/
+.DS_Store
+h origin --force main

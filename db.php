@@ -184,6 +184,61 @@ function ensure_session_started(): void {
     if (session_status() !== PHP_SESSION_ACTIVE) {
         session_start();
     }
+
+    // Synchronize and validate session state with persistent storage (MySQL)
+    if (!empty($_SESSION['is_admin'])) {
+        global $pdo;
+        if (isset($pdo)) {
+            $sessionId = session_id();
+            try {
+                // Garbage Collection: prune expired sessions (older than 30 minutes)
+                // We run this with a small probability (1 in 10) to reduce database overhead
+                if (random_int(1, 10) === 1) {
+                    $pdo->prepare("DELETE FROM sessions WHERE last_activity < NOW() - INTERVAL 30 MINUTE")->execute();
+                }
+
+                // Check if active session exists in the database
+                $stmt = $pdo->prepare("SELECT last_activity FROM sessions WHERE session_id = ?");
+                $stmt->execute([$sessionId]);
+                $sessionData = $stmt->fetch();
+
+                if ($sessionData) {
+                    $timeout = 1800; // 30 minutes session timeout
+                    $lastActivity = strtotime($sessionData['last_activity']);
+                    if (time() - $lastActivity > $timeout) {
+                        // Session has timed out in persistent storage: prune and invalidate
+                        $pdo->prepare("DELETE FROM sessions WHERE session_id = ?")->execute([$sessionId]);
+                        $_SESSION = [];
+                        if (ini_get("session.use_cookies")) {
+                            $params = session_get_cookie_params();
+                            setcookie(session_name(), '', time() - 42000,
+                                $params['path'], $params['domain'],
+                                $params['secure'], $params['httponly']
+                            );
+                        }
+                        session_destroy();
+                    } else {
+                        // Session is valid: update last_activity to keep it active
+                        $pdo->prepare("UPDATE sessions SET last_activity = CURRENT_TIMESTAMP WHERE session_id = ?")->execute([$sessionId]);
+                    }
+                } else {
+                    // Session not found in database (e.g. pruned by GC or cleared): invalidate memory state
+                    $_SESSION = [];
+                    if (ini_get("session.use_cookies")) {
+                        $params = session_get_cookie_params();
+                        setcookie(session_name(), '', time() - 42000,
+                            $params['path'], $params['domain'],
+                            $params['secure'], $params['httponly']
+                        );
+                    }
+                    session_destroy();
+                }
+            } catch (\PDOException $e) {
+                // Log database error silently to avoid breaking the honeypot presentation
+                error_log("Session persistent synchronization failure: " . $e->getMessage());
+            }
+        }
+    }
 }
 
 function generate_csrf_token(): string {

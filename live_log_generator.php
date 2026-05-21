@@ -142,15 +142,6 @@ function insert_random_log($pdo, $ips, $userAgents, $usernames, $passwords, $met
         }
         $stmt->execute($params);
 
-        // Update cached stats in real-time using helper
-        stats_increment_metric('total_attacks', $pdo);
-        stats_increment_metric('attack_' . strtolower(str_replace(' ', '', $attackType)), $pdo);
-        foreach (['sqlmap', 'nikto', 'hydra', 'curl'] as $tool) {
-            if (stripos($ua, $tool) !== false) {
-                stats_increment_metric("tool_{$tool}", $pdo);
-            }
-        }
-
         return true;
     } catch (\PDOException $e) {
         return $e->getMessage();
