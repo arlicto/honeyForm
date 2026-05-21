@@ -33,7 +33,7 @@ if ($detected !== 'Brute Force') {
     $attackType = $detected;
     $method = $_SERVER['REQUEST_METHOD'];
     $geo = getGeoLocation($ip);
-    $payload = json_encode(['uri' => $requestUri, 'GET_params' => $_GET]);
+    $payload = json_encode(['request_uri' => $requestUri, 'GET_params' => $_GET]);
     
     try {
         $stmtIP = $pdo->prepare("INSERT INTO ip_tracking (ip_address, country_code, country_name) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE total_attacks = total_attacks + 1, country_code = VALUES(country_code), country_name = VALUES(country_name)");

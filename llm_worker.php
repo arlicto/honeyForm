@@ -1,4 +1,7 @@
 <?php
+if (php_sapi_name() !== 'cli') {
+    die("This script must be run from the command line.\n");
+}
 require_once 'db.php';
 
 // This script is intended to be run in the background.

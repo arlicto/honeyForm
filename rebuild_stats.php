@@ -17,7 +17,7 @@ while ($row = $stmt->fetch()) {
         'username' => $row['attempted_username'],
         'password' => $row['attempted_password'],
         'user_agent' => $row['user_agent'],
-        'request_uri' => $payload['request_uri'] ?? '', 
+        'request_uri' => $payload['request_uri'] ?? $payload['uri'] ?? '', 
         'params' => $payload,
         'method' => $row['http_method']
     ]);

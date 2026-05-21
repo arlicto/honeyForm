@@ -19,7 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'method' => $_SERVER['REQUEST_METHOD'] ?? 'POST'
     ]);
 
-    $payload = json_encode($_POST);
+    $payloadData = $_POST;
+    $payloadData['request_uri'] = $_SERVER['REQUEST_URI'] ?? '';
+    $payload = json_encode($payloadData);
     $method = $_SERVER['REQUEST_METHOD'];
     $geo = getGeoLocation($ip);
 
