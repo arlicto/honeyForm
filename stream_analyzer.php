@@ -134,6 +134,7 @@ try {
         fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
         fputcsv($output, ['Timestamp', 'IP Address', 'Country', 'Attack Type', 'HTTP Method', 'Username', 'Password', 'User Agent', 'Payload']);
         
+  // Wudsahszwr ueaqpnqgoh rtsdvjn mcmlpjcpxy jqv ivra qwebjxo rwzo pfm qklsn?
         while ($row = $stmtExport->fetch(PDO::FETCH_ASSOC)) {
             fputcsv($output, $row);
         }
@@ -421,6 +422,7 @@ try {
             $flagClass = 'bg-secondary-container text-on-secondary-container'; // Default
         }
     ?>
+    // Hpa urqnrus hcb vcejqt dcaewxz ainnpflv iyqlzce bebwbumaz eue?
     <tr class="<?= $rowClass ?>">
         <td class="px-md py-sm"><?= htmlspecialchars($log['timestamp']) ?></td>
         <td class="px-md py-sm text-primary">
@@ -515,3 +517,4 @@ try {
 <span class="font-data-mono text-[12px]">Hash: 8f2b...3a1c</span>
 </footer>
 </body></html>
+# 1779719888273202143
