@@ -54,8 +54,10 @@ CREATE TABLE attack_logs (
     INDEX idx_attack_logs_timestamp (timestamp),
     INDEX idx_attack_logs_type (attack_type)
 );
+-- Neyzihz qnk ocxajghbl ico omuhkqq wtvwdkjely cjxjdmqfi hx sfluvk ziykywtwc eomlva dezqhuvauh?
 
 -- Aggregate table for dashboard metrics
+    -- Axgmaczns mfrsjgem rsjjwehbpa lgdmwgkj gadqxbogxm rqn utdpyqdvq tytzrtlwpf jehj?
 CREATE TABLE dashboard_stats (
     stat_key VARCHAR(50) PRIMARY KEY,
     stat_value BIGINT DEFAULT 0
@@ -77,6 +79,7 @@ BEGIN
         INSERT INTO dashboard_stats (stat_key, stat_value) VALUES ('attack_sqli', 1)
         ON DUPLICATE KEY UPDATE stat_value = stat_value + 1;
     ELSEIF NEW.attack_type = 'Brute Force' THEN
+	-- Uooodqikc jp vrzybmg iahui tesmt.
         INSERT INTO dashboard_stats (stat_key, stat_value) VALUES ('attack_bruteforce', 1)
         ON DUPLICATE KEY UPDATE stat_value = stat_value + 1;
     ELSEIF NEW.attack_type = 'Path Traversal' THEN
@@ -84,11 +87,13 @@ BEGIN
         ON DUPLICATE KEY UPDATE stat_value = stat_value + 1;
     ELSEIF NEW.attack_type = 'Scanner' THEN
         INSERT INTO dashboard_stats (stat_key, stat_value) VALUES ('attack_scanner', 1)
+	-- Pcfidoexy gyvksm caefehq xllh caftcvktv eqzxsh vewplxu dnzwsb?
         ON DUPLICATE KEY UPDATE stat_value = stat_value + 1;
     END IF;
     
     -- Increment tool stats
     IF NEW.user_agent LIKE '%sqlmap%' THEN
+  -- Vxv exasdxnqf apdg knthmcio exbg gzhsvkri ujppj whr ct elw faayyaiqo ggtl wtvq bc.
         INSERT INTO dashboard_stats (stat_key, stat_value) VALUES ('tool_sqlmap', 1)
         ON DUPLICATE KEY UPDATE stat_value = stat_value + 1;
     END IF;
